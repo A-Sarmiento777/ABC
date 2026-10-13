@@ -161,7 +161,7 @@ function loadVoices(){if(!('speechSynthesis'in window))return;
   voice=sv.sort((a,b)=>rank(a)-rank(b))[0]||null}
 if('speechSynthesis'in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
 /* pre-generated voice clips (tools/make-voices.mjs); the device voice covers anything missing */
-let CLIPS={};fetch('voices/index.json').then(r=>r.ok?r.json():{}).then(j=>CLIPS=j).catch(()=>{});
+let CLIPS={};fetch('voices/index.json',{cache:'no-cache'}).then(r=>r.ok?r.json():{}).then(j=>CLIPS=j).catch(()=>{});
 function speak(t){if(CLIPS[t]){stopAll();return playSrc('voices/'+CLIPS[t],8000)}
   if(!('speechSynthesis'in window))return Promise.resolve();if(!voice)loadVoices();speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(t);u.lang='sv-SE';if(voice)u.voice=voice;u.rate=.8;u.pitch=1.1;
@@ -333,7 +333,11 @@ home();
 </script>
 
 <script>
-if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js'))}
+if('serviceWorker' in navigator){
+  /* when a new version takes over, reload once so the old page doesn't linger */
+  const had=!!navigator.serviceWorker.controller;let done=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!done){done=true;location.reload()}});
+  addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}))}
 </script>
 </body>
 </html>
