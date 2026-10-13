@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, claude/github-pages-deploy-ptut8y]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -22,10 +23,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
       - name: Prepare site
         run: |
           mkdir _site
           cp -r index.html sw.js manifest.webmanifest icons .nojekyll _site/
+          if [ -d voices ]; then cp -r voices _site/; fi
       - uses: actions/configure-pages@v5
         with:
           enablement: true

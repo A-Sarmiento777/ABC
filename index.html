@@ -160,10 +160,13 @@ function loadVoices(){if(!('speechSynthesis'in window))return;
   const rank=x=>(/premium|enhanced|förbättrad/i.test(x.name)?0:/google/i.test(x.name)?1:/alva|klara|oskar/i.test(x.name)?2:3);
   voice=sv.sort((a,b)=>rank(a)-rank(b))[0]||null}
 if('speechSynthesis'in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
-function speak(t){if(!('speechSynthesis'in window))return;if(!voice)loadVoices();speechSynthesis.cancel();
+/* pre-generated voice clips (tools/make-voices.mjs); the device voice covers anything missing */
+let CLIPS={};fetch('voices/index.json').then(r=>r.ok?r.json():{}).then(j=>CLIPS=j).catch(()=>{});
+function speak(t){if(CLIPS[t]){stopAll();return playSrc('voices/'+CLIPS[t],8000)}
+  if(!('speechSynthesis'in window))return Promise.resolve();if(!voice)loadVoices();speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(t);u.lang='sv-SE';if(voice)u.voice=voice;u.rate=.8;u.pitch=1.1;
   return new Promise(res=>{u.onend=res;u.onerror=res;setTimeout(res,5000);speechSynthesis.speak(u)})}
-function say(t){if(!('speechSynthesis'in window))return Promise.resolve();return speak(t)}
+const say=speak;
 
 /* recorded sounds, stored on this device (IndexedDB) */
 const RECS={};let curAudio=null;
@@ -175,8 +178,9 @@ async function loadRecs(){try{const db=await idb();const st=db.transaction('snd'
   st.openCursor().onsuccess=e=>{const c=e.target.result;if(c){RECS[c.key]=c.value;c.continue()}}}catch(e){}}
 loadRecs();
 function stopAll(){try{speechSynthesis.cancel()}catch(e){}if(curAudio){curAudio.pause();curAudio=null}}
-function playBlob(b){return new Promise(res=>{const a=new Audio(URL.createObjectURL(b));curAudio=a;a.onended=res;a.onerror=res;
-  a.play().catch(res);setTimeout(res,4000)})}
+function playSrc(src,max){return new Promise(res=>{const a=new Audio(src);curAudio=a;a.onended=res;a.onerror=res;
+  a.play().catch(res);setTimeout(res,max)})}
+function playBlob(b){return playSrc(URL.createObjectURL(b),4000)}
 function sound(ch){return RECS[ch]?playBlob(RECS[ch]):say(SOUND[ch]||ch)}
 let seq=0;
 async function run(...steps){stopAll();const id=++seq;for(const s of steps){if(id!==seq)return;await s();
@@ -230,7 +234,7 @@ function find(){
   $('#sp').onclick=say;say();let done=false;
   main.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{if(done)return;
     if(b.dataset.o===t){done=true;b.classList.add('ok');b.innerHTML=`${t}<div style="font-size:.4em">${em}</div>`;
-      speak(`${PRAISE[Math.floor(Math.random()*PRAISE.length)]} ${t} som i ${w}.`);addStar();setTimeout(find,2600)}
+      run(()=>speak(PRAISE[Math.floor(Math.random()*PRAISE.length)]),()=>speak(`${t} som i ${w}.`));addStar();setTimeout(find,2600)}
     else{b.classList.add('no');speak(`Det där är ${b.dataset.o}. Försök igen!`)}});
 }
 function words(){
@@ -280,7 +284,7 @@ function count(){
    ${itemsHTML(n,em)}<div class="opts">${opts.map(o=>`<button class="opt" data-o="${o}">${o}</button>`).join('')}</div>`;
   const say=()=>speak('Hur många? Tryck på dem och räkna.');$('#sp').onclick=say;say();tapCount();let done=false;
   main.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{if(done)return;
-    if(+b.dataset.o===n){done=true;b.classList.add('ok');speak(`${PRAISE[Math.floor(Math.random()*PRAISE.length)]} ${NUMW[n]}!`);addStar();setTimeout(count,2400)}
+    if(+b.dataset.o===n){done=true;b.classList.add('ok');run(()=>speak(PRAISE[Math.floor(Math.random()*PRAISE.length)]),()=>speak(`${NUMW[n]}!`));addStar();setTimeout(count,2400)}
     else{b.classList.add('no');speak(`${NUMW[+b.dataset.o]}? Räkna en gång till!`)}});
 }
 function parent(){
