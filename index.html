@@ -28,6 +28,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--font);margin:0;o
 .ibtn{width:56px;height:56px;border-radius:50%;border:3px solid var(--line);background:var(--card);
   display:grid;place-items:center;cursor:pointer;color:var(--ink)}
 .ibtn svg{width:28px;height:28px}
+.ibtn.again{background:var(--sun);border-color:var(--sun)}
 .ibtn:focus-visible,.tile:focus-visible,.opt:focus-visible,.cell:focus-visible{outline:4px solid var(--sun);outline-offset:3px}
 .stars{font-size:28px;font-weight:700;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
 .stars b{color:var(--sun);font-size:34px}
@@ -183,7 +184,8 @@ function playBlob(b){return new Promise(res=>{const a=new Audio(URL.createObject
 function sound(ch){return RECS[ch]?playBlob(RECS[ch]):play(SOUND[ch]||ch)}
 let seq=0;
 const speak=t=>run(()=>play(t));
-async function run(...steps){stopAll();const id=++seq;for(const s of steps){if(id!==seq)return;await s();
+let last=null;
+async function run(...steps){stopAll();last=steps;const id=++seq;for(const s of steps){if(id!==seq)return;await s();
   if(id!==seq)return;await new Promise(r=>setTimeout(r,250))}}
 
 const $=s=>document.querySelector(s);
@@ -213,7 +215,7 @@ function letter(c){
   const [ch,w,em]=L(c),i=LETTERS.findIndex(x=>x[0]===c),k=kind(c);
   main.innerHTML=`<div class="detail"><button class="giant ${k}" id="g">${ch}${ch.toLowerCase()}</button>
    <button class="pic" id="p"><span class="em">${em}</span><span class="w"><span class="first" style="color:var(--${k==='v'?'vowel':'cons'})">${w[0]}</span>${w.slice(1)}</span></button></div>
-   <div class="nav"><button class="ibtn" id="prev" aria-label="Förra">◀</button><button class="ibtn" id="all" aria-label="Alla bokstäver">▦</button><button class="ibtn" id="next" aria-label="Nästa">▶</button></div>`;
+   <div class="nav"><button class="ibtn" id="prev" aria-label="Förra">◀</button><button class="ibtn again" id="again" aria-label="Lyssna igen">${SPK}</button><button class="ibtn" id="all" aria-label="Alla bokstäver">▦</button><button class="ibtn" id="next" aria-label="Nästa">▶</button></div>`;
   const phrase=()=>play(`${ch} som i ${w}.`);
   const say=()=>RECS[ch]||(SOUND[ch]&&SOUND[ch]!==ch.toLowerCase())?run(()=>sound(ch),phrase):run(phrase);
   $('#g').onclick=say;$('#p').onclick=()=>speak(w);
@@ -246,7 +248,7 @@ function word(i){
   main.innerHTML=`<div class="row2"><button class="pic" id="p"><span class="em">${em}</span><span class="w">${lw}</span></button>
    <div class="letters">${[...w].map((c,k)=>`<button class="lt ${kind(c)}" data-k="${k}">${c}</button>`).join('')}</div></div>
    <button class="ljuda" id="lj">${SPK} Ljuda</button>
-   <div class="nav"><button class="ibtn" id="prev" aria-label="Förra">◀</button><button class="ibtn" id="all" aria-label="Alla ord">▦</button><button class="ibtn" id="next" aria-label="Nästa">▶</button></div>`;
+   <div class="nav"><button class="ibtn" id="prev" aria-label="Förra">◀</button><button class="ibtn again" id="again" aria-label="Lyssna igen">${SPK}</button><button class="ibtn" id="all" aria-label="Alla ord">▦</button><button class="ibtn" id="next" aria-label="Nästa">▶</button></div>`;
   const tiles=[...main.querySelectorAll('.lt')];
   const hi=k=>tiles.forEach((t,j)=>t.classList.toggle('on',j===k));
   tiles.forEach((t,k)=>t.onclick=()=>run(()=>{hi(k);return sound(w[k])},()=>hi(-1)));
@@ -269,7 +271,7 @@ function number(n){
   main.innerHTML=`<div class="detail"><button class="giant n" id="g">${n}</button>
    <button class="pic" id="p"><span class="w">${NUMW[n]}</span></button></div>
    ${n?itemsHTML(n,em):'<p class="hint">Noll betyder ingenting alls!</p>'}
-   <div class="nav"><button class="ibtn" id="prev" aria-label="Förra">◀</button><button class="ibtn" id="all" aria-label="Alla siffror">▦</button><button class="ibtn" id="next" aria-label="Nästa">▶</button></div>`;
+   <div class="nav"><button class="ibtn" id="prev" aria-label="Förra">◀</button><button class="ibtn again" id="again" aria-label="Lyssna igen">${SPK}</button><button class="ibtn" id="all" aria-label="Alla siffror">▦</button><button class="ibtn" id="next" aria-label="Nästa">▶</button></div>`;
   const say=()=>speak(NUMW[n]);$('#g').onclick=say;$('#p').onclick=say;
   tapCount(()=>setTimeout(()=>speak(`${NUMW[n]}!`),700));
   $('#prev').onclick=()=>number((n+10)%11);$('#next').onclick=()=>number((n+1)%11);$('#all').onclick=nums;say();
@@ -320,6 +322,8 @@ function parent(){
   $('#reset').onclick=()=>{stars=0;store.set('stars',0);$('#starN').textContent=0};
 }
 $('#home').onclick=home;
+/* the 🔊 button in the bottom row repeats whatever was said last */
+main.addEventListener('click',e=>{if(e.target.closest('#again')&&last)run(...last)});
 /* hold 1.5 s to open parent settings */
 (()=>{const b=$('#parent'),f=$('#pfill');let t,raf,st;
   const stop=()=>{clearTimeout(t);cancelAnimationFrame(raf);f.style.height='0'};

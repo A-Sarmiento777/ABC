@@ -3,14 +3,24 @@
 // Already generated phrases are skipped unless --force is given.
 import {readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 
 const KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE = process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
 const MODEL = process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
 const FORCE = process.argv.includes('--force');
 // Slow and clear for small children. Changing these regenerates every clip.
+// speed 0.7 is the slowest ElevenLabs allows; TEMPO stretches the result further with ffmpeg (pitch stays the same).
 const SETTINGS = {stability: 0.7, similarity_boost: 0.8, speed: 0.7};
-const PAUSE = '<break time="0.5s" />';
+const TEMPO = 0.85;
+const PAUSE = '<break time="0.7s" />';
+const stretch = mp3 => {
+  if (TEMPO === 1) return mp3;
+  const r = spawnSync('ffmpeg', ['-loglevel', 'error', '-i', 'pipe:0', '-filter:a', `atempo=${TEMPO}`, '-b:a', '128k', '-f', 'mp3', 'pipe:1'],
+    {input: mp3, maxBuffer: 64 << 20});
+  if (r.status !== 0) throw new Error(`ffmpeg failed (is it installed?): ${r.stderr || r.error}`);
+  return r.stdout;
+};
 // What is sent to ElevenLabs: a short pause after the letter in "A som i apa".
 const spoken = text => text.replace(/^(\S+) som i /, `$1 ${PAUSE} som i `).replace(/^(.*\?) /, `$1 ${PAUSE} `);
 if (!KEY) { console.error('Missing ELEVENLABS_API_KEY'); process.exit(1); }
@@ -50,7 +60,7 @@ const indexPath = 'voices/index.json';
 const index = existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, 'utf8')) : {};
 let made = 0;
 for (const text of phrases) {
-  const file = createHash('sha1').update(`${VOICE}|${MODEL}|${JSON.stringify(SETTINGS)}|${spoken(text)}`).digest('hex').slice(0, 12) + '.mp3';
+  const file = createHash('sha1').update(`${VOICE}|${MODEL}|${JSON.stringify(SETTINGS)}|${TEMPO}|${spoken(text)}`).digest('hex').slice(0, 12) + '.mp3';
   if (!FORCE && index[text] === file && existsSync(`voices/${file}`)) continue;
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}?output_format=mp3_44100_128`, {
     method: 'POST',
@@ -58,7 +68,7 @@ for (const text of phrases) {
     body: JSON.stringify({text: spoken(text), model_id: MODEL, language_code: 'sv', voice_settings: SETTINGS}),
   });
   if (!res.ok) { console.error(`Failed "${text}": ${res.status} ${await res.text()}`); process.exit(1); }
-  writeFileSync(`voices/${file}`, Buffer.from(await res.arrayBuffer()));
+  writeFileSync(`voices/${file}`, stretch(Buffer.from(await res.arrayBuffer())));
   index[text] = file;
   made++;
   console.log(`✓ ${text}`);

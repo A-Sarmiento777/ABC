@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install ffmpeg
+        run: which ffmpeg || (sudo apt-get update -q && sudo apt-get install -yq ffmpeg)
       - name: Generate clips
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
