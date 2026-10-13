@@ -156,6 +156,8 @@ let maxN=store.get('maxN',5);
 
 /* voice: ElevenLabs clips from voices/ (tools/make-voices.mjs), played through Web Audio.
    Clips are decoded ahead of time so a sequence of phrases plays without gaps or autoplay blocks. */
+/* iPhone: play even when the ring/silent switch is on (Safari 17+) */
+try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}
 const AC=new (window.AudioContext||window.webkitAudioContext)();
 ['pointerdown','touchend','click','keydown'].forEach(ev=>addEventListener(ev,()=>{if(AC.state!=='running')AC.resume()},true));
 const BUF={};
@@ -302,7 +304,8 @@ function parent(){
    <p class="hint">Tryck ● och säg ljudet (inte namnet): “mmm”, “sss”, “aaa”. Inspelningen tar 2 sekunder.</p>
    <div class="note" id="micnote" hidden></div>
    <div class="recs">${LETTERS.map(([c])=>`<div class="rec ${RECS[c]?'has':''}" data-c="${c}"><b>${c}</b><button data-a="rec" aria-label="Spela in ${c}">●</button><button data-a="play" aria-label="Lyssna ${c}">▶</button><button data-a="del" aria-label="Ta bort ${c}">✕</button></div>`).join('')}</div>
-   <div class="row"><button class="chip" id="reset">Nollställ stjärnor</button></div></div>`;
+   <div class="row"><button class="chip" id="reset">Nollställ stjärnor</button></div>
+   <p class="hint">Version __VERSION__</p></div>`;
   main.querySelectorAll('.rec button').forEach(b=>b.onclick=async()=>{const row=b.closest('.rec'),c=row.dataset.c;
     if(b.dataset.a==='play')return run(()=>sound(c));
     if(b.dataset.a==='del'){delete RECS[c];row.classList.remove('has');try{await idbDo('readwrite',s=>s.delete(c))}catch(e){}return}
