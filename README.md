@@ -8,7 +8,7 @@ Deployed automatically to GitHub Pages by `.github/workflows/pages.yml` on every
 
 ## Voices (ElevenLabs)
 
-The app plays pre-generated clips from `voices/` and falls back to the device's voice for anything missing.
+The app only uses the ElevenLabs clips in `voices/` (no device voice). Speed and pauses are set at the top of `tools/make-voices.mjs`.
 
 To generate them:
 
