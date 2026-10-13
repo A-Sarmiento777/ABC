@@ -210,7 +210,8 @@ function letter(c){
   main.innerHTML=`<div class="detail"><button class="giant ${k}" id="g">${ch}${ch.toLowerCase()}</button>
    <button class="pic" id="p"><span class="em">${em}</span><span class="w"><span class="first" style="color:var(--${k==='v'?'vowel':'cons'})">${w[0]}</span>${w.slice(1)}</span></button></div>
    <div class="nav"><button class="ibtn" id="prev" aria-label="Förra">◀</button><button class="ibtn" id="all" aria-label="Alla bokstäver">▦</button><button class="ibtn" id="next" aria-label="Nästa">▶</button></div>`;
-  const say=()=>run(()=>speak(`${ch}.`),()=>sound(ch),()=>speak(`${ch} som i ${w}.`));
+  const phrase=()=>speak(`${ch} som i ${w}.`);
+  const say=()=>RECS[ch]||(SOUND[ch]&&SOUND[ch]!==ch.toLowerCase())?run(()=>sound(ch),phrase):run(phrase);
   $('#g').onclick=say;$('#p').onclick=()=>run(()=>speak(w));
   $('#prev').onclick=()=>letter(LETTERS[(i+LETTERS.length-1)%LETTERS.length][0]);
   $('#next').onclick=()=>letter(LETTERS[(i+1)%LETTERS.length][0]);
