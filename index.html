@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#2457a6">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>ABC-lek</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+/* Layout: one-screen tablet app — top bar, then one big play surface per screen. Vowels red, consonants blue (as in Swedish classrooms). Single bright theme by choice. */
+:root{
+  --paper:#fbf6ea; --card:#ffffff; --ink:#1f2a44; --muted:#6b7389;
+  --vowel:#d6453d; --cons:#2457a6; --sun:#f2b632; --leaf:#3f9a5b; --line:#e7dfcc;
+  --font:"Andika","Comic Sans MS","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--font);margin:0;overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#app{height:100%;display:flex;flex-direction:column;padding-inline:16px;box-sizing:border-box}
+.bar{display:flex;align-items:center;gap:12px;padding-block:12px;min-height:64px}
+.bar .grow{flex:1}
+.ibtn{width:56px;height:56px;border-radius:50%;border:3px solid var(--line);background:var(--card);
+  display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.ibtn svg{width:28px;height:28px}
+.ibtn:focus-visible,.tile:focus-visible,.opt:focus-visible,.cell:focus-visible{outline:4px solid var(--sun);outline-offset:3px}
+.stars{font-size:28px;font-weight:700;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.stars b{color:var(--sun);font-size:34px}
+main{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding-bottom:16px}
+h1{margin:0;font-size:clamp(32px,6vmin,56px);text-wrap:balance}
+.hint{color:var(--muted);font-size:18px;margin:0}
+
+/* home */
+.tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:20px;width:min(100%,900px)}
+.tiles .tile{grid-column:span 2}.tiles .tile:nth-child(n+4){grid-column:span 3}
+.t5{background:#8a4fb0}
+/* words */
+.wcard{background:var(--card);border:3px solid var(--line);border-radius:20px;padding:12px 8px;cursor:pointer;font-family:var(--font);
+  display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--ink)}
+.wcard .em{font-size:44px;line-height:1.1}
+.wcard .up{font-size:28px;font-weight:700;letter-spacing:.04em}
+.wcard .lo{font-size:22px}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;width:min(100%,960px);overflow-y:auto;padding:4px;max-height:100%}
+.letters{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.lt{width:clamp(80px,17vmin,150px);aspect-ratio:3/4;max-width:100%;border-radius:22px;border:4px solid var(--line);background:var(--card);
+  font-family:var(--font);font-size:clamp(56px,13vmin,110px);font-weight:700;cursor:pointer;transition:transform .15s}
+.lt.v{color:var(--vowel)}.lt.c{color:var(--cons)}
+.lt.on{transform:translateY(-12px) scale(1.06);border-color:var(--sun);background:#fff6dc}
+.row2{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center}
+.ljuda{border:0;border-radius:999px;background:var(--sun);color:var(--ink);font:700 28px var(--font);padding:14px 30px;cursor:pointer;
+  box-shadow:0 5px 0 #c48f16;display:flex;align-items:center;gap:10px}
+.ljuda svg{width:32px;height:32px}
+.ljuda:active{transform:translateY(3px);box-shadow:0 2px 0 #c48f16}
+.recs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.rec{display:flex;align-items:center;gap:6px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:6px 8px}
+.rec b{font-size:26px;width:34px;text-align:center}
+.rec button{border:0;border-radius:10px;background:var(--paper);font:700 16px var(--font);padding:8px 10px;cursor:pointer;color:var(--ink)}
+.rec.has b{color:var(--leaf)}
+.rec button.live{background:var(--vowel);color:#fff}
+.tile{border:0;border-radius:28px;padding:24px 16px;cursor:pointer;color:#fff;font-family:var(--font);
+  display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 6px 0 rgba(0,0,0,.18)}
+.tile:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.tile .big{font-size:clamp(48px,11vmin,96px);font-weight:700;line-height:1}
+.tile .lbl{font-size:clamp(20px,3.6vmin,30px);font-weight:700}
+.t1{background:var(--cons)} .t2{background:var(--vowel)} .t3{background:var(--leaf)} .t4{background:#b9821a}
+
+/* grids */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:12px;width:min(100%,960px);
+  overflow-y:auto;padding:4px;max-height:100%}
+.cell{aspect-ratio:1;max-width:100%;border-radius:20px;border:3px solid var(--line);background:var(--card);
+  font-family:var(--font);font-size:clamp(36px,6vmin,52px);font-weight:700;cursor:pointer}
+.cell.v{color:var(--vowel)} .cell.c{color:var(--cons)} .cell.n{color:var(--ink)}
+.cell.off{opacity:.3}
+
+/* detail */
+.detail{display:flex;align-items:center;gap:clamp(16px,5vw,64px);flex-wrap:wrap;justify-content:center}
+.giant{font-size:clamp(120px,30vmin,280px);font-weight:700;line-height:1;cursor:pointer;background:none;border:0;font-family:var(--font)}
+.giant.v{color:var(--vowel)} .giant.c{color:var(--cons)} .giant.n{color:var(--ink)}
+.pic{display:flex;flex-direction:column;align-items:center;gap:8px;background:var(--card);border-radius:28px;
+  padding:20px 28px;border:3px solid var(--line);cursor:pointer;font-family:var(--font);color:var(--ink)}
+.pic .em{font-size:clamp(80px,18vmin,160px);line-height:1}
+.pic .w{font-size:clamp(28px,5vmin,44px);font-weight:700}
+.pic .w .first{text-decoration:underline;text-decoration-thickness:4px;text-underline-offset:6px}
+.nav{display:flex;gap:16px}
+
+/* games */
+.prompt{display:flex;align-items:center;gap:16px}
+.speak{width:88px;height:88px;border-radius:50%;background:var(--sun);border:0;cursor:pointer;display:grid;place-items:center;
+  box-shadow:0 5px 0 #c48f16;color:var(--ink)}
+.speak svg{width:44px;height:44px}
+.speak:active{transform:translateY(3px);box-shadow:0 2px 0 #c48f16}
+.opts{display:flex;gap:clamp(12px,3vw,32px);flex-wrap:wrap;justify-content:center}
+.opt{width:clamp(110px,24vmin,200px);aspect-ratio:1;max-width:100%;border-radius:28px;background:var(--card);border:4px solid var(--line);
+  font-family:var(--font);font-size:clamp(64px,15vmin,130px);font-weight:700;cursor:pointer;color:var(--ink)}
+.opt.v{color:var(--vowel)} .opt.c{color:var(--cons)}
+.opt.ok{border-color:var(--leaf);background:#e6f5ea;animation:pop .4s}
+.opt.no{animation:shake .4s;opacity:.35}
+@keyframes pop{50%{transform:scale(1.12)}}
+@keyframes shake{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+.items{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;max-width:760px}
+.item{font-size:clamp(48px,9vmin,80px);background:none;border:0;cursor:pointer;position:relative;padding:4px;line-height:1}
+.item.done{opacity:.45}
+.item .num{position:absolute;top:-6px;right:-6px;background:var(--ink);color:#fff;font:700 20px var(--font);
+  width:32px;height:32px;border-radius:50%;display:grid;place-items:center;opacity:1}
+.burst{position:fixed;inset:0;pointer-events:none;display:grid;place-items:center;font-size:160px;animation:burst .9s forwards}
+@keyframes burst{0%{transform:scale(.3);opacity:0}40%{transform:scale(1.1);opacity:1}100%{transform:scale(1.4);opacity:0}}
+
+/* parents */
+.hold{position:relative;overflow:hidden}
+.hold .fill{position:absolute;left:0;bottom:0;width:100%;height:0;background:var(--sun);opacity:.5}
+.panel{width:min(100%,960px);display:flex;flex-direction:column;gap:14px;overflow-y:auto;max-height:100%}
+.panel h2{margin:0;font-size:22px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.chip{border:3px solid var(--line);background:var(--card);border-radius:999px;padding:10px 18px;font:700 18px var(--font);cursor:pointer;color:var(--ink)}
+.chip.on{border-color:var(--cons);background:#e3ecfa}
+.note{background:var(--card);border:2px dashed var(--line);border-radius:16px;padding:12px 16px;color:var(--muted);font-size:16px;max-width:65ch}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+@media (max-width:620px){.tiles{grid-template-columns:1fr}.tiles .tile,.tiles .tile:nth-child(n+4){grid-column:auto}}
+</style>
+</head>
+<body>
+
+
+<div id="app">
+  <div class="bar">
+    <button class="ibtn" id="home" aria-label="Hem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg></button>
+    <div class="grow"></div>
+    <div class="stars" aria-label="Stjärnor"><b>★</b><span id="starN">0</span></div>
+    <button class="ibtn hold" id="parent" aria-label="Föräldrar: håll inne"><span class="fill" id="pfill"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
+  </div>
+  <main id="main"></main>
+</div>
+
+<script>
+const SPK='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const VOW='AEIOUYÅÄÖ';
+const LETTERS=[['A','apa','🐒'],['B','boll','⚽'],['C','cykel','🚲'],['D','drake','🐉'],['E','elefant','🐘'],['F','fisk','🐟'],['G','gris','🐷'],['H','hus','🏠'],['I','igelkott','🦔'],['J','jordgubbe','🍓'],['K','katt','🐱'],['L','lejon','🦁'],['M','mus','🐭'],['N','nyckel','🔑'],['O','orm','🐍'],['P','päron','🍐'],['Q','quiz','❓'],['R','ros','🌹'],['S','sol','☀️'],['T','tåg','🚂'],['U','uggla','🦉'],['V','val','🐋'],['W','wok','🥘'],['X','xylofon','🎵'],['Y','yxa','🪓'],['Z','zebra','🦓'],['Å','åsna','🫏'],['Ä','äpple','🍎'],['Ö','öga','👁️']];
+const WORDS=[['RO','🚣'],['OS','💨'],['SO','🐷'],['IS','🧊'],['RIS','🍚'],['LO','🐆'],['AL','🌳'],['ROS','🌹'],['MOS','🥔'],['SOL','☀️'],['MOR','👩'],['LER','😊'],['SER','👀'],['MAL','🦋'],['ORM','🐍'],['LAMM','🐑'],['MAMMA','👩‍👦'],['SAL','🧂']];
+/* Fallback sounds for the voice engine. Recorded sounds (parents' mode) always win. */
+const SOUND={A:'a',E:'e',I:'i',O:'o',U:'u',Y:'y',Å:'å',Ä:'ä',Ö:'ö',M:'mmm',S:'sss',L:'lll',R:'rrr',F:'fff',N:'nnn',V:'vvv',J:'jjj'};
+const NUMW=['noll','ett','två','tre','fyra','fem','sex','sju','åtta','nio','tio'];
+const THINGS=['🍎','🐟','🦆','⭐','🚗','🐞','🎈','🍓'];
+const PRAISE=['Bra jobbat!','Snyggt!','Ja, rätt!','Toppen!','Jättebra!'];
+
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let stars=store.get('stars',0);
+let pool=store.get('pool',['A','O','S','M','L','I','R','E']);
+let maxN=store.get('maxN',5);
+
+/* speech */
+let voice=null;
+function loadVoices(){if(!('speechSynthesis'in window))return;
+  const sv=speechSynthesis.getVoices().filter(x=>/^sv/i.test(x.lang));
+  const rank=x=>(/premium|enhanced|förbättrad/i.test(x.name)?0:/google/i.test(x.name)?1:/alva|klara|oskar/i.test(x.name)?2:3);
+  voice=sv.sort((a,b)=>rank(a)-rank(b))[0]||null}
+if('speechSynthesis'in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
+function speak(t){if(!('speechSynthesis'in window))return;if(!voice)loadVoices();speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(t);u.lang='sv-SE';if(voice)u.voice=voice;u.rate=.8;u.pitch=1.1;
+  return new Promise(res=>{u.onend=res;u.onerror=res;setTimeout(res,5000);speechSynthesis.speak(u)})}
+function say(t){if(!('speechSynthesis'in window))return Promise.resolve();return speak(t)}
+
+/* recorded sounds, stored on this device (IndexedDB) */
+const RECS={};let curAudio=null;
+function idb(){return new Promise((res,rej)=>{try{const r=indexedDB.open('abc-lek',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('snd');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
+async function idbDo(mode,fn){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('snd',mode);const r=fn(tx.objectStore('snd'));
+  tx.oncomplete=()=>res(r&&r.result);tx.onerror=()=>rej(tx.error)})}
+async function loadRecs(){try{const db=await idb();const st=db.transaction('snd').objectStore('snd');
+  st.openCursor().onsuccess=e=>{const c=e.target.result;if(c){RECS[c.key]=c.value;c.continue()}}}catch(e){}}
+loadRecs();
+function stopAll(){try{speechSynthesis.cancel()}catch(e){}if(curAudio){curAudio.pause();curAudio=null}}
+function playBlob(b){return new Promise(res=>{const a=new Audio(URL.createObjectURL(b));curAudio=a;a.onended=res;a.onerror=res;
+  a.play().catch(res);setTimeout(res,4000)})}
+function sound(ch){return RECS[ch]?playBlob(RECS[ch]):say(SOUND[ch]||ch)}
+let seq=0;
+async function run(...steps){stopAll();const id=++seq;for(const s of steps){if(id!==seq)return;await s();
+  if(id!==seq)return;await new Promise(r=>setTimeout(r,250))}}
+
+const $=s=>document.querySelector(s);
+const main=$('#main');
+const kind=L=>VOW.includes(L)?'v':'c';
+const L=ch=>LETTERS.find(x=>x[0]===ch);
+const shuffle=a=>a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(x=>x[1]);
+function addStar(){stars++;store.set('stars',stars);$('#starN').textContent=stars;
+  const b=document.createElement('div');b.className='burst';b.textContent='⭐';document.body.appendChild(b);setTimeout(()=>b.remove(),900)}
+$('#starN').textContent=stars;
+
+/* screens */
+function home(){
+  main.innerHTML=`<div class="tiles">
+   <button class="tile t1" data-go="abc"><span class="big">Aa</span><span class="lbl">Bokstäver</span></button>
+   <button class="tile t2" data-go="find"><span class="big">🔊</span><span class="lbl">Hitta bokstaven</span></button>
+   <button class="tile t5" data-go="words"><span class="big">SOL</span><span class="lbl">Ljuda ord</span></button>
+   <button class="tile t3" data-go="nums"><span class="big">123</span><span class="lbl">Siffror</span></button>
+   <button class="tile t4" data-go="count"><span class="big">🍎🍎</span><span class="lbl">Räkna</span></button></div>`;
+  main.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>({abc,find,words,nums,count})[b.dataset.go]());
+}
+function abc(){
+  main.innerHTML=`<div class="grid">${LETTERS.map(([c])=>`<button class="cell ${kind(c)}" data-c="${c}">${c}${c.toLowerCase()}</button>`).join('')}</div>`;
+  main.querySelectorAll('.cell').forEach(b=>b.onclick=()=>letter(b.dataset.c));
+}
+function letter(c){
+  const [ch,w,em]=L(c),i=LETTERS.findIndex(x=>x[0]===c),k=kind(c);
+  main.innerHTML=`<div class="detail"><button class="giant ${k}" id="g">${ch}${ch.toLowerCase()}</button>
+   <button class="pic" id="p"><span class="em">${em}</span><span class="w"><span class="first" style="color:var(--${k==='v'?'vowel':'cons'})">${w[0]}</span>${w.slice(1)}</span></button></div>
+   <div class="nav"><button class="ibtn" id="prev" aria-label="Förra">◀</button><button class="ibtn" id="all" aria-label="Alla bokstäver">▦</button><button class="ibtn" id="next" aria-label="Nästa">▶</button></div>`;
+  const say=()=>run(()=>speak(`${ch}.`),()=>sound(ch),()=>speak(`${ch} som i ${w}.`));
+  $('#g').onclick=say;$('#p').onclick=()=>run(()=>speak(w));
+  $('#prev').onclick=()=>letter(LETTERS[(i+LETTERS.length-1)%LETTERS.length][0]);
+  $('#next').onclick=()=>letter(LETTERS[(i+1)%LETTERS.length][0]);
+  $('#all').onclick=abc;say();
+}
+let lastT=null;
+function find(){
+  const p=pool.length>=3?pool:['A','O','S'];
+  let t;do{t=p[Math.floor(Math.random()*p.length)]}while(t===lastT&&p.length>1);lastT=t;
+  const others=shuffle(p.filter(x=>x!==t)).slice(0,2);const opts=shuffle([t,...others]);
+  const [,w,em]=L(t);
+  main.innerHTML=`<div class="prompt"><button class="speak" id="sp" aria-label="Lyssna igen">${SPK}</button></div>
+   <div class="opts">${opts.map(o=>`<button class="opt ${kind(o)}" data-o="${o}">${o}</button>`).join('')}</div>
+   <p class="hint">Lyssna och tryck på rätt bokstav</p>`;
+  const say=()=>speak(`Var är ${t}? ${t} som i ${w}.`);
+  $('#sp').onclick=say;say();let done=false;
+  main.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{if(done)return;
+    if(b.dataset.o===t){done=true;b.classList.add('ok');b.innerHTML=`${t}<div style="font-size:.4em">${em}</div>`;
+      speak(`${PRAISE[Math.floor(Math.random()*PRAISE.length)]} ${t} som i ${w}.`);addStar();setTimeout(find,2600)}
+    else{b.classList.add('no');speak(`Det där är ${b.dataset.o}. Försök igen!`)}});
+}
+function words(){
+  main.innerHTML=`<div class="wgrid">${WORDS.map(([w,em],i)=>`<button class="wcard" data-i="${i}"><span class="em">${em}</span><span class="up">${w}</span><span class="lo">${w.toLowerCase()}</span></button>`).join('')}</div>`;
+  main.querySelectorAll('.wcard').forEach(b=>b.onclick=()=>word(+b.dataset.i));
+}
+function word(i){
+  const [w,em]=WORDS[i],lw=w.toLowerCase();
+  main.innerHTML=`<div class="row2"><button class="pic" id="p"><span class="em">${em}</span><span class="w">${lw}</span></button>
+   <div class="letters">${[...w].map((c,k)=>`<button class="lt ${kind(c)}" data-k="${k}">${c}</button>`).join('')}</div></div>
+   <button class="ljuda" id="lj">${SPK} Ljuda</button>
+   <div class="nav"><button class="ibtn" id="prev" aria-label="Förra">◀</button><button class="ibtn" id="all" aria-label="Alla ord">▦</button><button class="ibtn" id="next" aria-label="Nästa">▶</button></div>`;
+  const tiles=[...main.querySelectorAll('.lt')];
+  const hi=k=>tiles.forEach((t,j)=>t.classList.toggle('on',j===k));
+  tiles.forEach((t,k)=>t.onclick=()=>run(()=>{hi(k);return sound(w[k])},()=>hi(-1)));
+  const ljuda=()=>run(...[...w].map((c,k)=>()=>{hi(k);return sound(c)}),
+    ()=>{tiles.forEach(t=>t.classList.add('on'));return say(lw)},()=>hi(-1));
+  $('#lj').onclick=ljuda;$('#p').onclick=()=>run(()=>say(lw));
+  $('#prev').onclick=()=>word((i+WORDS.length-1)%WORDS.length);$('#next').onclick=()=>word((i+1)%WORDS.length);$('#all').onclick=words;
+  run(()=>say(lw));
+}
+function nums(){
+  main.innerHTML=`<div class="grid">${NUMW.map((_,n)=>`<button class="cell n" data-n="${n}">${n}</button>`).join('')}</div>`;
+  main.querySelectorAll('.cell').forEach(b=>b.onclick=()=>number(+b.dataset.n));
+}
+function itemsHTML(n,em){return `<div class="items">${Array.from({length:n},(_,i)=>`<button class="item" data-i="${i}">${em}</button>`).join('')}</div>`}
+function tapCount(onAll){let c=0;main.querySelectorAll('.item').forEach(b=>b.onclick=()=>{if(b.classList.contains('done'))return;
+  c++;b.classList.add('done');b.insertAdjacentHTML('beforeend',`<span class="num">${c}</span>`);speak(NUMW[c]);
+  if(onAll&&c===main.querySelectorAll('.item').length)onAll()})}
+function number(n){
+  const em=THINGS[n%THINGS.length];
+  main.innerHTML=`<div class="detail"><button class="giant n" id="g">${n}</button>
+   <button class="pic" id="p"><span class="w">${NUMW[n]}</span></button></div>
+   ${n?itemsHTML(n,em):'<p class="hint">Noll betyder ingenting alls!</p>'}
+   <div class="nav"><button class="ibtn" id="prev" aria-label="Förra">◀</button><button class="ibtn" id="all" aria-label="Alla siffror">▦</button><button class="ibtn" id="next" aria-label="Nästa">▶</button></div>`;
+  const say=()=>speak(NUMW[n]);$('#g').onclick=say;$('#p').onclick=say;
+  tapCount(()=>setTimeout(()=>speak(`${NUMW[n]}!`),700));
+  $('#prev').onclick=()=>number((n+10)%11);$('#next').onclick=()=>number((n+1)%11);$('#all').onclick=nums;say();
+}
+let lastN=null;
+function count(){
+  let n;do{n=1+Math.floor(Math.random()*maxN)}while(n===lastN&&maxN>1);lastN=n;
+  const em=THINGS[Math.floor(Math.random()*THINGS.length)];
+  const cand=shuffle(Array.from({length:Math.max(maxN,3)},(_,i)=>i+1).filter(x=>x!==n)).slice(0,2);
+  const opts=shuffle([n,...cand]);
+  main.innerHTML=`<div class="prompt"><button class="speak" id="sp" aria-label="Lyssna igen">${SPK}</button><h1>Hur många?</h1></div>
+   ${itemsHTML(n,em)}<div class="opts">${opts.map(o=>`<button class="opt" data-o="${o}">${o}</button>`).join('')}</div>`;
+  const say=()=>speak('Hur många? Tryck på dem och räkna.');$('#sp').onclick=say;say();tapCount();let done=false;
+  main.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{if(done)return;
+    if(+b.dataset.o===n){done=true;b.classList.add('ok');speak(`${PRAISE[Math.floor(Math.random()*PRAISE.length)]} ${NUMW[n]}!`);addStar();setTimeout(count,2400)}
+    else{b.classList.add('no');speak(`${NUMW[+b.dataset.o]}? Räkna en gång till!`)}});
+}
+function parent(){
+  main.innerHTML=`<div class="panel">
+   <h2>Bokstäver i “Hitta bokstaven”</h2>
+   <p class="hint">Börja med några få och lägg till fler när de sitter. Minst 3.</p>
+   <div class="row" id="pl">${LETTERS.map(([c])=>`<button class="chip ${pool.includes(c)?'on':''}" data-c="${c}">${c}</button>`).join('')}</div>
+   <h2>Räkna upp till</h2>
+   <div class="row" id="mx">${[3,5,10].map(m=>`<button class="chip ${maxN===m?'on':''}" data-m="${m}">${m}</button>`).join('')}</div>
+   <h2>Röst</h2>
+   <div class="note">${voice?`Svensk röst: <b>${voice.name}</b>`:'Ingen svensk röst hittades. På Android: Inställningar → Text till tal → installera svenska (Google).'}
+   <br><button class="chip" id="test" style="margin-top:8px">Testa rösten</button></div>
+   <h2>Spela in ljuden med din röst</h2>
+   <p class="hint">Tryck ● och säg ljudet (inte namnet): “mmm”, “sss”, “aaa”. Inspelningen tar 2 sekunder.</p>
+   <div class="note" id="micnote" hidden></div>
+   <div class="recs">${LETTERS.map(([c])=>`<div class="rec ${RECS[c]?'has':''}" data-c="${c}"><b>${c}</b><button data-a="rec" aria-label="Spela in ${c}">●</button><button data-a="play" aria-label="Lyssna ${c}">▶</button><button data-a="del" aria-label="Ta bort ${c}">✕</button></div>`).join('')}</div>
+   <div class="row"><button class="chip" id="reset">Nollställ stjärnor</button></div></div>`;
+  main.querySelectorAll('.rec button').forEach(b=>b.onclick=async()=>{const row=b.closest('.rec'),c=row.dataset.c;
+    if(b.dataset.a==='play')return run(()=>sound(c));
+    if(b.dataset.a==='del'){delete RECS[c];row.classList.remove('has');try{await idbDo('readwrite',s=>s.delete(c))}catch(e){}return}
+    try{const st=await navigator.mediaDevices.getUserMedia({audio:true});const mr=new MediaRecorder(st),ch=[];
+      mr.ondataavailable=e=>ch.push(e.data);b.classList.add('live');
+      mr.onstop=async()=>{st.getTracks().forEach(t=>t.stop());b.classList.remove('live');
+        const blob=new Blob(ch,{type:mr.mimeType||'audio/webm'});RECS[c]=blob;row.classList.add('has');
+        try{await idbDo('readwrite',s=>s.put(blob,c))}catch(e){}playBlob(blob)};
+      mr.start();setTimeout(()=>mr.stop(),2000);
+    }catch(e){const n=$('#micnote');n.hidden=false;n.textContent='Mikrofonen är inte tillgänglig här. Den fungerar i den installerade versionen på din server (HTTPS).'}});
+  main.querySelectorAll('#pl .chip').forEach(b=>b.onclick=()=>{const c=b.dataset.c;
+    if(pool.includes(c)){if(pool.length<=3)return;pool=pool.filter(x=>x!==c)}else pool.push(c);
+    b.classList.toggle('on',pool.includes(c));store.set('pool',pool)});
+  main.querySelectorAll('#mx .chip').forEach(b=>b.onclick=()=>{maxN=+b.dataset.m;store.set('maxN',maxN);
+    main.querySelectorAll('#mx .chip').forEach(x=>x.classList.toggle('on',x===b))});
+  $('#test').onclick=()=>speak('Hej! A som i apa. Ett, två, tre.');
+  $('#reset').onclick=()=>{stars=0;store.set('stars',0);$('#starN').textContent=0};
+}
+$('#home').onclick=home;
+/* hold 1.5 s to open parent settings */
+(()=>{const b=$('#parent'),f=$('#pfill');let t,raf,st;
+  const stop=()=>{clearTimeout(t);cancelAnimationFrame(raf);f.style.height='0'};
+  const tick=()=>{f.style.height=Math.min(100,(performance.now()-st)/15)+'%';raf=requestAnimationFrame(tick)};
+  b.addEventListener('pointerdown',e=>{e.preventDefault();st=performance.now();tick();t=setTimeout(()=>{stop();parent()},1500)});
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,stop));
+  b.addEventListener('keydown',e=>{if(e.key==='Enter')parent()});
+})();
+home();
+</script>
+
+<script>
+if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js'))}
+</script>
+</body>
+</html>
