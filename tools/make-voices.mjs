@@ -1,7 +1,8 @@
 // Generates every phrase the app speaks with ElevenLabs and saves them in voices/.
 // Usage: ELEVENLABS_API_KEY=... [ELEVENLABS_VOICE_ID=...] node tools/make-voices.mjs [--force]
 // Already generated phrases are skipped unless --force is given.
-import {readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, mkdtempSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 
@@ -10,16 +11,21 @@ const VOICE = process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
 const MODEL = process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
 const FORCE = process.argv.includes('--force');
 // Slow and clear for small children. Changing these regenerates every clip.
-// speed 0.7 is the slowest ElevenLabs allows; TEMPO stretches the result further with ffmpeg (pitch stays the same).
+// speed 0.7 is the slowest ElevenLabs allows; TEMPO stretches the result further with ffmpeg's rubberband
+// filter (keeps pitch and voice quality; atempo sounded metallic).
 const SETTINGS = {stability: 0.7, similarity_boost: 0.8, speed: 0.7};
 const TEMPO = 0.85;
 const PAUSE = '<break time="0.7s" />';
+const tmp = mkdtempSync(`${tmpdir()}/voices-`);
 const stretch = mp3 => {
   if (TEMPO === 1) return mp3;
-  const r = spawnSync('ffmpeg', ['-loglevel', 'error', '-i', 'pipe:0', '-filter:a', `atempo=${TEMPO}`, '-b:a', '128k', '-f', 'mp3', 'pipe:1'],
-    {input: mp3, maxBuffer: 64 << 20});
-  if (r.status !== 0) throw new Error(`ffmpeg failed (is it installed?): ${r.stderr || r.error}`);
-  return r.stdout;
+  // Real files, not pipes, so ffmpeg can write a proper MP3 header.
+  writeFileSync(`${tmp}/in.mp3`, mp3);
+  const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', `${tmp}/in.mp3`,
+    '-af', `rubberband=tempo=${TEMPO}:pitchq=quality:window=long:smoothing=on`,
+    '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', '44100', `${tmp}/out.mp3`]);
+  if (r.status !== 0) throw new Error(`ffmpeg failed (needs rubberband): ${r.stderr || r.error}`);
+  return readFileSync(`${tmp}/out.mp3`);
 };
 // What is sent to ElevenLabs: a short pause after the letter in "A som i apa".
 const spoken = text => text.replace(/^(\S+) som i /, `$1 ${PAUSE} som i `).replace(/^(.*\?) /, `$1 ${PAUSE} `);
@@ -60,7 +66,7 @@ const indexPath = 'voices/index.json';
 const index = existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, 'utf8')) : {};
 let made = 0;
 for (const text of phrases) {
-  const file = createHash('sha1').update(`${VOICE}|${MODEL}|${JSON.stringify(SETTINGS)}|${TEMPO}|${spoken(text)}`).digest('hex').slice(0, 12) + '.mp3';
+  const file = createHash('sha1').update(`${VOICE}|${MODEL}|${JSON.stringify(SETTINGS)}|rubberband${TEMPO}|${spoken(text)}`).digest('hex').slice(0, 12) + '.mp3';
   if (!FORCE && index[text] === file && existsSync(`voices/${file}`)) continue;
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}?output_format=mp3_44100_128`, {
     method: 'POST',
