@@ -11,20 +11,18 @@ const VOICE = process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
 const MODEL = process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
 const FORCE = process.argv.includes('--force');
 // Slow and clear for small children. Changing these regenerates every clip.
-// speed 0.7 is the slowest ElevenLabs allows; TEMPO stretches the result further with ffmpeg's rubberband
-// filter (keeps pitch and voice quality; atempo sounded metallic).
+// speed 0.7 is the slowest ElevenLabs allows; TEMPO stretches the result further with ffmpeg (pitch stays the same).
+// (ffmpeg's rubberband filter was tried and adds a loud click at the start of clips.)
 const SETTINGS = {stability: 0.7, similarity_boost: 0.8, speed: 0.7};
 const TEMPO = 0.85;
-const PAUSE = '<break time="0.7s" />';
+const PAUSE = '<break time="0.5s" />';
 const tmp = mkdtempSync(`${tmpdir()}/voices-`);
 const stretch = mp3 => {
-  if (TEMPO === 1) return mp3;
-  // Real files, not pipes, so ffmpeg can write a proper MP3 header.
+  // Real files, not pipes: piped MP3s lack the Info/LAME header and Safari plays them distorted.
   writeFileSync(`${tmp}/in.mp3`, mp3);
-  const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', `${tmp}/in.mp3`,
-    '-af', `rubberband=tempo=${TEMPO}:pitchq=quality:window=long:smoothing=on`,
-    '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', '44100', `${tmp}/out.mp3`]);
-  if (r.status !== 0) throw new Error(`ffmpeg failed (needs rubberband): ${r.stderr || r.error}`);
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-y', '-loglevel', 'error', '-i', `${tmp}/in.mp3`,
+    '-af', `atempo=${TEMPO}`, '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', '44100', `${tmp}/out.mp3`], {encoding: 'utf8'});
+  if (r.status !== 0) throw new Error(`ffmpeg failed: ${r.stderr || r.error}`);
   return readFileSync(`${tmp}/out.mp3`);
 };
 // What is sent to ElevenLabs: a short pause after the letter in "A som i apa".
@@ -66,7 +64,7 @@ const indexPath = 'voices/index.json';
 const index = existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, 'utf8')) : {};
 let made = 0;
 for (const text of phrases) {
-  const file = createHash('sha1').update(`${VOICE}|${MODEL}|${JSON.stringify(SETTINGS)}|rubberband${TEMPO}|${spoken(text)}`).digest('hex').slice(0, 12) + '.mp3';
+  const file = createHash('sha1').update(`${VOICE}|${MODEL}|${JSON.stringify(SETTINGS)}|atempo${TEMPO}file|${spoken(text)}`).digest('hex').slice(0, 12) + '.mp3';
   if (!FORCE && index[text] === file && existsSync(`voices/${file}`)) continue;
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}?output_format=mp3_44100_128`, {
     method: 'POST',
@@ -76,6 +74,7 @@ for (const text of phrases) {
   if (!res.ok) { console.error(`Failed "${text}": ${res.status} ${await res.text()}`); process.exit(1); }
   writeFileSync(`voices/${file}`, stretch(Buffer.from(await res.arrayBuffer())));
   index[text] = file;
+  writeFileSync(indexPath, JSON.stringify(index, null, 1) + '\n');
   made++;
   console.log(`✓ ${text}`);
 }
