@@ -20,3 +20,9 @@ It creates the clips, commits them to `voices/` and redeploys the site. Only new
 Locally: `ELEVENLABS_API_KEY=... ELEVENLABS_VOICE_ID=... node tools/make-voices.mjs`
 
 If you add phrases to `index.html`, add them to the list in `tools/make-voices.mjs` too.
+
+## Räkna och tryck
+
+Count the animals and tap the right number (1–5, then 1–10 after 5 first-try answers in a row).
+Its sound comes from `audio/numbers/1.mp3` … `10.mp3`; replace those files to change the voice.
+A missing file just means no sound.

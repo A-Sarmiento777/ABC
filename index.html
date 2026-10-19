@@ -38,8 +38,8 @@ h1{margin:0;font-size:clamp(32px,6vmin,56px);text-wrap:balance}
 
 /* home */
 .tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:20px;width:min(100%,900px)}
-.tiles .tile{grid-column:span 2}.tiles .tile:nth-child(n+4){grid-column:span 3}
-.t5{background:#8a4fb0}
+.tiles .tile{grid-column:span 2}
+.t5{background:#8a4fb0} .t6{background:#d9663a}
 /* words */
 .wcard{background:var(--card);border:3px solid var(--line);border-radius:20px;padding:12px 8px;cursor:pointer;font-family:var(--font);
   display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--ink)}
@@ -109,6 +109,22 @@ h1{margin:0;font-size:clamp(32px,6vmin,56px);text-wrap:balance}
 .item .num{position:absolute;top:-6px;right:-6px;background:var(--ink);color:#fff;font:700 20px var(--font);
   width:32px;height:32px;border-radius:50%;display:grid;place-items:center;opacity:1}
 .burst{position:fixed;inset:0;pointer-events:none;display:grid;place-items:center;font-size:160px;animation:burst .9s forwards}
+/* Räkna och tryck */
+.rt{display:flex;flex-direction:column;align-items:center;gap:clamp(16px,3vh,32px);width:100%}
+.rt h1{margin:0;font-size:clamp(30px,5vmin,48px)}
+.rt .herd{display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(6px,1.5vmin,16px);max-width:min(100%,820px);min-height:clamp(90px,16vmin,140px)}
+.rt .herd span{font-size:clamp(56px,10vmin,96px);line-height:1;display:inline-block;animation:appear .35s backwards}
+.rt .herd.hop span{animation:hop .6s}
+.rt .opts{gap:clamp(16px,4vw,48px)}
+.rt .opt{width:clamp(96px,26vmin,220px);box-shadow:0 6px 0 var(--line);touch-action:manipulation;user-select:none}
+.rt .opt:active{transform:translateY(4px);box-shadow:0 2px 0 var(--line)}
+.rt .opt.wob{animation:wobble .5s}
+.rt .level{font-size:clamp(22px,3.6vmin,32px);font-weight:700;color:var(--leaf);min-height:1.3em;margin:0}
+@keyframes appear{from{transform:scale(0)}}
+@keyframes hop{30%{transform:translateY(-28px) rotate(-8deg)}60%{transform:translateY(0)}80%{transform:translateY(-8px)}}
+@keyframes wobble{20%{transform:translateX(-8px) rotate(-3deg)}40%{transform:translateX(8px) rotate(3deg)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.conf{position:fixed;top:-20px;width:14px;height:22px;border-radius:4px;pointer-events:none;animation:fall 1.6s ease-in forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg);opacity:.6}}
 @keyframes burst{0%{transform:scale(.3);opacity:0}40%{transform:scale(1.1);opacity:1}100%{transform:scale(1.4);opacity:0}}
 
 /* parents */
@@ -120,7 +136,7 @@ h1{margin:0;font-size:clamp(32px,6vmin,56px);text-wrap:balance}
 .chip{border:3px solid var(--line);background:var(--card);border-radius:999px;padding:10px 18px;font:700 18px var(--font);cursor:pointer;color:var(--ink)}
 .chip.on{border-color:var(--cons);background:#e3ecfa}
 .note{background:var(--card);border:2px dashed var(--line);border-radius:16px;padding:12px 16px;color:var(--muted);font-size:16px;max-width:65ch}
-@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.conf{display:none}}
 @media (max-width:620px){.tiles{grid-template-columns:1fr}.tiles .tile,.tiles .tile:nth-child(n+4){grid-column:auto}}
 </style>
 </head>
@@ -161,12 +177,16 @@ try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}
 const AC=new (window.AudioContext||window.webkitAudioContext)();
 ['pointerdown','touchend','click','keydown'].forEach(ev=>addEventListener(ev,()=>{if(AC.state!=='running')AC.resume()},true));
 const BUF={};
-function clip(f){return BUF[f]||(BUF[f]=fetch('voices/'+f).then(r=>{if(!r.ok)throw r.status;return r.arrayBuffer()})
-  .then(b=>new Promise((res,rej)=>AC.decodeAudioData(b,res,rej))).catch(e=>{delete BUF[f];console.warn('clip',f,e);return null}))}
+function load(url){return BUF[url]||(BUF[url]=fetch(url).then(r=>{if(!r.ok)throw r.status;return r.arrayBuffer()})
+  .then(b=>new Promise((res,rej)=>AC.decodeAudioData(b,res,rej))).catch(e=>{delete BUF[url];console.warn('audio',url,e);return null}))}
+const clip=f=>load('voices/'+f);
 const CLIPS=fetch('voices/index.json',{cache:'no-cache'}).then(r=>r.ok?r.json():{}).catch(()=>({}));
 CLIPS.then(async j=>{for(const f of new Set(Object.values(j)))await clip(f)});
 let cur=null,gen=0;
-function play(t){const g=gen;return CLIPS.then(j=>j[t]?clip(j[t]):(console.warn('no clip for',t),null)).then(buf=>{
+function play(t){return playBuf(CLIPS.then(j=>j[t]?clip(j[t]):(console.warn('no clip for',t),null)))}
+/* a local mp3 by path; a missing file just plays nothing */
+const playFile=url=>playBuf(load(url));
+function playBuf(p){const g=gen;return p.then(buf=>{
   if(!buf||g!==gen)return;if(AC.state!=='running')AC.resume();
   return new Promise(res=>{const s=AC.createBufferSource();s.buffer=buf;s.connect(AC.destination);
     cur={stop:()=>{s.onended=null;try{s.stop()}catch(e){}res()}};s.onended=()=>{cur=null;res()};s.start()})})}
@@ -206,8 +226,9 @@ function home(){
    <button class="tile t2" data-go="find"><span class="big">🔊</span><span class="lbl">Hitta bokstaven</span></button>
    <button class="tile t5" data-go="words"><span class="big">SOL</span><span class="lbl">Ljuda ord</span></button>
    <button class="tile t3" data-go="nums"><span class="big">123</span><span class="lbl">Siffror</span></button>
-   <button class="tile t4" data-go="count"><span class="big">🍎🍎</span><span class="lbl">Räkna</span></button></div>`;
-  main.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>({abc,find,words,nums,count})[b.dataset.go]());
+   <button class="tile t4" data-go="count"><span class="big">🍎🍎</span><span class="lbl">Räkna</span></button>
+   <button class="tile t6" data-go="rakna"><span class="big">🐄3</span><span class="lbl">Räkna och tryck</span></button></div>`;
+  main.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>({abc,find,words,nums,count,rakna})[b.dataset.go]());
 }
 function abc(){
   main.innerHTML=`<div class="grid">${LETTERS.map(([c])=>`<button class="cell ${kind(c)}" data-c="${c}">${c}${c.toLowerCase()}</button>`).join('')}</div>`;
@@ -290,6 +311,31 @@ function count(){
   main.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{if(done)return;
     if(+b.dataset.o===n){done=true;b.classList.add('ok');run(()=>play(PRAISE[Math.floor(Math.random()*PRAISE.length)]),()=>play(`${NUMW[n]}!`));addStar();setTimeout(count,2400)}
     else{b.classList.add('no');speak(`${NUMW[+b.dataset.o]}? Räkna en gång till!`)}});
+}
+/* Räkna och tryck: count the animals and tap the right number.
+   Numbers 1–5 to start; after 5 first-try answers in a row it moves up to 1–10 (remembered on this device).
+   Sound comes from audio/numbers/<n>.mp3 when the file exists. */
+const HERD=[['🐄','kor'],['🐱','katter'],['🐶','hundar'],['🐸','grodor'],['🐟','fiskar'],['🐷','grisar'],['🐰','kaniner'],['🐥','kycklingar'],['🐻','björnar'],['🦊','rävar']];
+let rtMax=store.get('rtMax',5),rtStreak=0,rtLast=null;
+function confetti(){const col=['#d6453d','#2457a6','#f2b632','#3f9a5b','#8a4fb0','#d9663a'];
+  for(let i=0;i<36;i++){const c=document.createElement('div');c.className='conf';c.style.left=Math.random()*100+'vw';
+    c.style.background=col[i%col.length];c.style.animationDelay=Math.random()*.4+'s';c.style.animationDuration=1.2+Math.random()*.8+'s';
+    document.body.appendChild(c);setTimeout(()=>c.remove(),2600)}}
+function rakna(msg=''){
+  let n;do{n=1+Math.floor(Math.random()*rtMax)}while(n===rtLast);rtLast=n;
+  const [em,name]=HERD[Math.floor(Math.random()*HERD.length)];
+  const wrong=shuffle(Array.from({length:rtMax},(_,i)=>i+1).filter(x=>x!==n)).slice(0,2);
+  main.innerHTML=`<div class="rt"><h1>Hur många ${name}?</h1>
+   <div class="herd">${Array.from({length:n},(_,i)=>`<span style="animation-delay:${i*.06}s">${em}</span>`).join('')}</div>
+   <div class="opts">${shuffle([n,...wrong]).map(o=>`<button class="opt" data-o="${o}">${o}</button>`).join('')}</div>
+   <p class="level">${msg}</p></div>`;
+  let tries=0,done=false;
+  main.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{if(done)return;
+    if(+b.dataset.o!==n){tries++;rtStreak=0;b.classList.remove('wob');void b.offsetWidth;b.classList.add('wob');return}
+    done=true;b.classList.add('ok');main.querySelector('.herd').classList.add('hop');confetti();addStar();
+    stopAll();playFile(`audio/numbers/${n}.mp3`);
+    let next='';if(!tries&&++rtStreak>=5&&rtMax<10){rtMax=10;rtStreak=0;store.set('rtMax',10);next='Nu räknar vi till 10! 🎉'}
+    setTimeout(()=>{if(main.querySelector('.rt'))rakna(next)},2200)});
 }
 function parent(){
   main.innerHTML=`<div class="panel">
