@@ -216,6 +216,8 @@ async function run(...steps){stopAll();last=steps;const id=++seq;for(const s of 
 
 const $=s=>document.querySelector(s);
 const main=$('#main');
+/* every new screen starts scrolled to the top */
+new MutationObserver(()=>{main.scrollTop=0}).observe(main,{childList:true});
 const kind=L=>VOW.includes(L)?'v':'c';
 const L=ch=>LETTERS.find(x=>x[0]===ch);
 const shuffle=a=>a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(x=>x[1]);
