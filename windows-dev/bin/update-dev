@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# update-dev: download the latest windows-dev commands and templates from GitHub.
+# Usage: update-dev
+set -euo pipefail
+BASE="${WINDOWS_DEV_URL:-https://raw.githubusercontent.com/a-sarmiento777/ABC/claude/admiring-faraday-rlw9ec/windows-dev}"
+FILES="bin/update-dev bin/check-dev bin/composer bin/del-headless bin/del-wp bin/new-headless bin/new-wp bin/php bin/sync-hosts templates/astro-wp/README.md templates/astro-wp/astro.config.mjs templates/astro-wp/env.example templates/astro-wp/gitignore templates/astro-wp/package.json templates/astro-wp/src/layouts/Layout.astro templates/astro-wp/src/lib/wp.js templates/astro-wp/src/pages/[slug].astro templates/astro-wp/src/pages/index.astro"
+for f in $FILES; do
+  case "$f" in
+    bin/*)       dest="$HOME/bin/${f#bin/}" ;;
+    templates/*) dest="$HOME/.windows-dev/$f" ;;
+  esac
+  mkdir -p "$(dirname "$dest")"
+  curl -gfsSL "$BASE/$f" -o "$dest.tmp" && mv "$dest.tmp" "$dest"
+  echo "  $f"
+done
+chmod +x "$HOME"/bin/* 2>/dev/null || true
+echo "Up to date."

@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# new-wp: create a fresh local WordPress site in ~/Sites. Run in Git Bash.
+#
+#   new-wp mysite                  -> http://mysite.test
+#   new-wp mysite --https          -> https://mysite.test
+#   new-wp mysite --locale sv_SE   -> Swedish WordPress
+#
+# Login: admin / admin. Database: mysite (root, no password).
+
+set -euo pipefail
+
+usage() { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+
+NAME=""; HTTPS=0; LOCALE="${NEW_WP_LOCALE:-en_US}"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --https)  HTTPS=1 ;;
+    --locale) LOCALE="${2:?--locale needs a value, e.g. sv_SE}"; shift ;;
+    -h|--help) usage ;;
+    -*) echo "Unknown option $1"; usage ;;
+    *)  NAME="$1" ;;
+  esac
+  shift
+done
+[ -n "$NAME" ] || usage
+case "$NAME" in *[!a-zA-Z0-9.-]*) echo "Use only letters, numbers, dots and dashes in the name"; exit 1 ;; esac
+
+SITES="${SITES_PATH:-$HOME/Sites}"
+DIR="$SITES/$NAME"
+DB="$(printf '%s' "$NAME" | tr '.-' '__')"
+SCHEME=http; [ "$HTTPS" = 1 ] && SCHEME=https
+URL="$SCHEME://$NAME.test"
+
+[ -e "$DIR" ] && { echo "$DIR already exists"; exit 1; }
+mysql -uroot -h127.0.0.1 -e "CREATE DATABASE \`$DB\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" \
+  || { echo "Could not create database $DB (does it already exist? Is MySQL running?)"; exit 1; }
+
+# If anything below fails, remove the half-made site so new-wp can simply be run again.
+cleanup() {
+  echo "Setup failed; removing $DIR and database $DB"
+  cd "$SITES"; rm -rf "$DIR"
+  mysql -uroot -h127.0.0.1 -e "DROP DATABASE IF EXISTS \`$DB\`" || true
+}
+trap cleanup ERR
+
+mkdir -p "$DIR"
+cd "$DIR"
+# Not `wp core download`: its unpacker breaks on long file names on Windows. Git Bash's tar doesn't.
+echo "Downloading WordPress..."
+curl -fsSL https://wordpress.org/latest.tar.gz | tar xz --strip-components=1 -C "$DIR"
+wp config create --dbname="$DB" --dbuser=root --dbpass="" --dbhost=127.0.0.1 --skip-check --extra-php <<'PHP'
+define( 'WP_DEBUG', true );
+define( 'WP_DEBUG_LOG', true );
+define( 'WP_DEBUG_DISPLAY', false );
+define( 'WP_ENVIRONMENT_TYPE', 'local' );
+PHP
+wp core install --url="$URL" --title="$NAME" --admin_user=admin --admin_password=admin \
+  --admin_email="admin@$NAME.test" --skip-email
+wp rewrite structure '/%postname%/' --hard >/dev/null
+if [ "$LOCALE" != "en_US" ]; then
+  wp language core install "$LOCALE" --activate
+fi
+trap - ERR
+
+# Herd doesn't always add new sites to the hosts file; do it here.
+"$(dirname "$0")/sync-hosts" || echo "Run sync-hosts later so the browser can find $NAME.test"
+
+if [ "$HTTPS" = 1 ]; then
+  cmd.exe //c "$(cygpath -w "$HOME/.config/herd/bin/herd.bat")" secure "$NAME"
+fi
+
+echo
+echo "Ready:  $URL"
+echo "Admin:  $URL/wp-admin   (admin / admin)"
+echo "Folder: $DIR"
+echo "Debug log: $DIR/wp-content/debug.log"

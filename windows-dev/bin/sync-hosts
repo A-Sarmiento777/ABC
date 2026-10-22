@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# sync-hosts: point <folder>.test at this PC for every folder in ~/Sites.
+# Herd on Windows doesn't always add new sites to the hosts file, so browsers
+# can't find them ("DNS address could not be found").
+#
+# Windows asks for permission (UAC) because the hosts file is protected.
+# Only lines ending in "# windows-dev" are changed; Herd's own lines are kept.
+# Usage: sync-hosts
+
+set -euo pipefail
+SITES="${SITES_PATH:-$HOME/Sites}"
+
+names=""
+for d in "$SITES"/*/; do
+  n="$(basename "$d")"
+  case "$n" in *[!a-zA-Z0-9.-]*|"*") continue ;; esac
+  names="$names'$n.test',"
+done
+names="${names%,}"
+
+ps1="$(mktemp --suffix=.ps1)"
+cat > "$ps1" <<PS
+\$hosts = "\$env:windir\\System32\\drivers\\etc\\hosts"
+\$keep  = [IO.File]::ReadAllLines(\$hosts) | Where-Object { \$_ -notmatch '# windows-dev\$' }
+\$add   = @($names) | ForEach-Object { "127.0.0.1 \$_ # windows-dev" }
+[IO.File]::WriteAllText(\$hosts, ((@(\$keep) + @(\$add)) -join "\`r\`n").TrimEnd() + "\`r\`n")
+ipconfig /flushdns | Out-Null
+PS
+
+echo "Updating the hosts file (click Yes in the Windows popup)..."
+powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','$(cygpath -w "$ps1")'" \
+  || { echo "Cancelled; hosts file not changed"; rm -f "$ps1"; exit 1; }
+rm -f "$ps1"
+
+grep '# windows-dev' /c/Windows/System32/drivers/etc/hosts | sed 's/ # windows-dev//; s/^127.0.0.1 /  /'

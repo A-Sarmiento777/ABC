@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# del-headless: remove a site made with new-headless (WordPress, database and Astro folder).
+# Usage: del-headless blog
+set -euo pipefail
+NAME="${1:?Usage: del-headless blog}"
+FRONT="${PROJECTS_PATH:-$HOME/Projects}/$NAME"
+"$(dirname "$0")/del-wp" "$NAME-cms"
+if [ -d "$FRONT" ]; then
+  read -rp "Also delete the Astro folder $FRONT? [y/N] " ok
+  case "$ok" in [yY]*) rm -rf "$FRONT"; echo "Deleted $FRONT" ;; esac
+fi

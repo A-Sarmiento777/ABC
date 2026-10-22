@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# del-wp: delete a local site made with new-wp (its folder and its database).
+# Usage: del-wp mysite
+
+set -euo pipefail
+NAME="${1:?Usage: del-wp mysite}"
+DIR="${SITES_PATH:-$HOME/Sites}/$NAME"
+DB="$(printf '%s' "$NAME" | tr '.-' '__')"
+
+[ -d "$DIR" ] || { echo "$DIR does not exist"; exit 1; }
+read -rp "Delete folder $DIR and database $DB? This cannot be undone. [y/N] " ok
+case "$ok" in [yY]*) ;; *) echo "Cancelled"; exit 0 ;; esac
+
+mysql -uroot -h127.0.0.1 -e "DROP DATABASE IF EXISTS \`$DB\`"
+rm -rf "$DIR"
+echo "Deleted $NAME"
+"$(dirname "$0")/sync-hosts" || true

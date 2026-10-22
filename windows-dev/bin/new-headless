@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# new-headless: WordPress as the editor + an Astro site that shows its content.
+#
+#   new-headless blog                   -> WordPress at http://blog-cms.test
+#                                          Astro in ~/Projects/blog (npm run dev -> http://localhost:4321)
+#   new-headless blog --locale sv_SE    -> Swedish WordPress
+#
+# Remove both again with: del-headless blog
+
+set -euo pipefail
+
+usage() { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+NAME="${1:-}"; [ -n "$NAME" ] && [ "${NAME#-}" = "$NAME" ] || usage
+shift
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+TEMPLATE="${WINDOWS_DEV_TEMPLATES:-$HOME/.windows-dev/templates}/astro-wp"
+PROJECTS="${PROJECTS_PATH:-$HOME/Projects}"
+FRONT="$PROJECTS/$NAME"
+CMS="$NAME-cms"
+
+[ -d "$TEMPLATE" ] || { echo "Astro template not found at $TEMPLATE (run setup.ps1 again)"; exit 1; }
+[ -e "$FRONT" ] && { echo "$FRONT already exists"; exit 1; }
+command -v npm >/dev/null || { echo "npm not found. Install Node (Herd > Settings > Node, or nvm)"; exit 1; }
+
+echo "==> WordPress backend: $CMS"
+"$HERE/new-wp" "$CMS" "$@"
+
+echo
+echo "==> Astro frontend: $FRONT"
+mkdir -p "$PROJECTS"
+cp -r "$TEMPLATE" "$FRONT"
+cd "$FRONT"
+mv env.example .env
+mv gitignore .gitignore
+for f in package.json .env README.md; do sed -i "s/__NAME__/$NAME/g" "$f"; done
+npm install --no-fund --no-audit astro@latest
+
+cat <<MSG
+
+Ready.
+  Write content:  http://$CMS.test/wp-admin   (admin / admin)
+  Run the site:   cd ~/Projects/$NAME && npm run dev   -> http://localhost:4321
+  Static files:   npm run build                        -> ~/Projects/$NAME/dist
+MSG

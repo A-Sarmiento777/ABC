@@ -1,0 +1,20 @@
+---
+// One route for every WordPress post and page: /hello-world/, /about/ ...
+import Layout from '../layouts/Layout.astro';
+import { getPosts, getPages } from '../lib/wp.js';
+
+export async function getStaticPaths() {
+  const [posts, pages] = await Promise.all([getPosts(), getPages()]);
+  return [...posts, ...pages].map((item) => ({ params: { slug: item.slug }, props: { item } }));
+}
+
+const { item } = Astro.props;
+const image = item._embedded?.['wp:featuredmedia']?.[0];
+---
+<Layout title={item.title.rendered}>
+  <article>
+    <h1 set:html={item.title.rendered} />
+    {image && <img src={image.source_url} alt={image.alt_text} />}
+    <div set:html={item.content.rendered} />
+  </article>
+</Layout>

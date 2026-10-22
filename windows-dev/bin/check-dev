@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# check-dev: verify the Windows (Herd) dev setup. Run in Git Bash.
+# Usage: check-dev [site]   e.g. check-dev mysite  (also checks http://mysite.test loads)
+
+pass=0; fail=0
+ok()  { printf '  \033[32mok\033[0m    %s\n' "$*"; pass=$((pass+1)); }
+bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$*"; fail=$((fail+1)); }
+check() { # description, command...
+  local desc="$1"; shift
+  local out
+  if out="$("$@" 2>&1)"; then ok "$desc: $(printf '%s' "$out" | head -n1 | tr -d '\r')"; else bad "$desc: $(printf '%s' "$out" | head -n1 | tr -d '\r')"; fi
+}
+
+echo "Tools"
+check "php"      php -r 'echo PHP_VERSION;'
+check "memory_limit = 512M" sh -c "php -r 'echo ini_get(\"memory_limit\");' | grep -x 512M"
+check "upload_max_filesize = 512M" sh -c "php -r 'echo ini_get(\"upload_max_filesize\");' | grep -x 512M"
+check "mysql 8.4" sh -c "mysql -uroot -h127.0.0.1 -N -e 'select version()' | grep '^8\.4'"
+check "wp"       wp --version
+check "composer" composer --version
+check "node"     node -v
+check "git autocrlf=false" sh -c "git config --global core.autocrlf | grep -x false"
+
+echo
+echo "Web"
+if [ -n "${1:-}" ]; then
+  check "http://$1.test" curl -fsS -o /dev/null -w '%{http_code}' "http://$1.test"
+fi
+
+echo
+echo "$pass ok, $fail failed"
+[ "$fail" -eq 0 ]

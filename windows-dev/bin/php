@@ -1,0 +1,4 @@
+#!/bin/sh
+# php for Git Bash: runs Herd's php.exe directly (bash can't run Herd's php.bat).
+# Use another version for one command with: HERD_PHP=php84 php -v
+exec "$HOME/.config/herd/bin/${HERD_PHP:-php83}/php.exe" "$@"

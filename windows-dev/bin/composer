@@ -1,0 +1,3 @@
+#!/bin/sh
+# composer for Git Bash: runs Herd's composer.bat through cmd.
+exec cmd.exe //c "$(cygpath -w "$HOME/.config/herd/bin/composer.bat")" "$@"

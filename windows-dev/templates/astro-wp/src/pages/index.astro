@@ -1,0 +1,18 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getPosts } from '../lib/wp.js';
+
+const posts = await getPosts();
+const date = (d) => new Date(d).toLocaleDateString('en-GB', { dateStyle: 'long' });
+---
+<Layout>
+  <h1>Latest posts</h1>
+  {posts.length === 0 && <p>No posts yet. Write one in WordPress and reload.</p>}
+  {posts.map((post) => (
+    <article>
+      <h2><a href={`/${post.slug}/`} set:html={post.title.rendered} /></h2>
+      <time datetime={post.date}>{date(post.date)}</time>
+      <div set:html={post.excerpt.rendered} />
+    </article>
+  ))}
+</Layout>
